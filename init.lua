@@ -87,6 +87,58 @@ mq.event('DerpleVend_PlatGain',
         local amt = tonumber(cleaned) or 0
         totalPlatThisSell = totalPlatThisSell + amt
     end)
+local function navToMerchant(merchant)
+    if not mq.TLO.Window("MerchantWnd").Open() then
+        local merchant = mq.TLO.NearestSpawn("merchant radius 1000") -- Adjust radius as needed; "merchant" searches for open merchants
+
+        if not merchant() then
+            Output("\arNo nearby merchant found!")
+            return false
+        end
+
+        Output("\ayNavigating to nearest merchant: \at%s \ay(distance: %.0f)", merchant.CleanName(), merchant.Distance())
+
+        mq.cmdf("/nav id %d", merchant.ID())
+        mq.delay(1000, function() return mq.TLO.Navigation.Active() end)
+
+        local timeout = mq.gettime() + 60000 -- 60 second timeout
+        while mq.TLO.Navigation.Active() and merchant.Distance() > 30 do
+            mq.delay(250)
+            if mq.gettime() > timeout then
+                Output("\arNavigation to merchant timed out!")
+                mq.cmd("/nav stop")
+                return false
+            end
+        end
+
+        mq.cmdf("/mqtarget id %d", merchant.ID())
+        mq.delay("5s", function() return mq.TLO.Target.ID() == merchant.ID() end)
+
+        timeout = mq.gettime() + 10000 -- 10 second timeout
+        while not mq.TLO.Window("MerchantWnd").Open() do
+            mq.cmd("/click right target")
+            mq.delay(100)
+            if mq.gettime() > timeout then
+                Output("\arFailed to open merchant window after 10 seconds!")
+                return false
+            end
+        end
+
+        Output("\agMerchant window opened! Starting junk sell...")
+    else
+        Output("\agMerchant window already open. Starting junk sell...")
+    end
+
+    return true
+end
+
+local function autoSellJunk()
+    if navToMerchant() then
+        sellAllJunk = true
+        trackPlatDuringSell = true
+        totalPlatThisSell = 0
+    end
+end
 
 local function sellItem(item)
     if not mq.TLO.Window("MerchantWnd").Open() then
@@ -280,9 +332,7 @@ local function vendorGUI()
                 if ImGui.SmallButton(disabled and "Cancel Selling" or "Sell Junk") then
                     sellAllJunk = not sellAllJunk
                     if sellAllJunk then
-                        -- Begin tracking platinum for this Sell Junk session
-                        trackPlatDuringSell = true
-                        totalPlatThisSell   = 0
+                        autoSellJunk()
                     end
                 end
                 Tooltip(disabled and "Stop selling junk items" or "Sell all junk items")
@@ -319,8 +369,12 @@ end
 
 mq.imgui.init('vendorGUI', vendorGUI)
 
-mq.bind("/vendor", function()
-    openGUI = not openGUI
+mq.bind("/vendor", function(args)
+    if args == "selljunk" then
+        autoSellJunk()
+    else
+        openGUI = not openGUI
+    end
 end
 )
 
