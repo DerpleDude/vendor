@@ -130,7 +130,7 @@ function vendor_inv:getItems(index)
         for j = 1, (slot.Container()), 1 do
             if (slot.Item(j)() and not slot.Item(j).NoDrop() and not slot.Item(j).NoRent()) then
                 table.insert(itemTable, { Item = slot.Item(j), })
-                printf("Adding item %s to send list", slot.Item(j).Name())
+                --printf("Adding item %s to send list", slot.Item(j).Name())
             end
         end
         self.items = itemTable
