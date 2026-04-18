@@ -263,9 +263,10 @@ local function renderItems()
         ImGui.EndTable()
     end
 end
-local buyItemsSorted = {}
-local buyItemsDirty  = true
-local buyFilter      = ""
+local buyItemsSorted        = {}
+local buyItemsDirty         = true
+local buyFilter             = ""
+local merchantSnapshotPending = false
 
 local function matchesFilter(name, filter)
     if filter == "" then return true end
@@ -610,8 +611,7 @@ local function vendorGUI()
         if not openLastFrame then
             vendorInv:createContainerInventory()
             vendorInv:getItems(sourceIndex)
-            snapshotMerchantItems()
-            snapshotDiveResults()
+            merchantSnapshotPending = true
         end
 
         openLastFrame = true
@@ -778,6 +778,12 @@ end)
 
 while not terminate do
     if mq.TLO.MacroQuest.GameState() ~= "INGAME" then return end
+
+    if merchantSnapshotPending and mq.TLO.Merchant.ItemsReceived() == true then
+        snapshotMerchantItems()
+        snapshotDiveResults()
+        merchantSnapshotPending = false
+    end
 
     if mq.gettime() - lastInventoryScan > 1000 then
         lastInventoryScan = mq.gettime()
