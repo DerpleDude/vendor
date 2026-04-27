@@ -263,9 +263,9 @@ local function renderItems()
         ImGui.EndTable()
     end
 end
-local buyItemsSorted        = {}
-local buyItemsDirty         = true
-local buyFilter             = ""
+local buyItemsSorted          = {}
+local buyItemsDirty           = true
+local buyFilter               = ""
 local merchantSnapshotPending = false
 
 local function matchesFilter(name, filter)
@@ -617,14 +617,10 @@ local function vendorGUI()
         openLastFrame = true
 
         ImGui.SetNextWindowPos(merchantWnd.X() + merchantWnd.Width(), merchantWnd.Y())
-        if collapsed then
-            ImGui.SetNextWindowSize(40, 30)
-        else
-            ImGui.SetNextWindowSize(400, merchantWnd.Height())
-        end
+        ImGui.SetNextWindowSizeConstraints(400, merchantWnd.Height(), 1500, merchantWnd.Height())
 
         openGUI, shouldDrawGUI = ImGui.Begin('DerpleVend', openGUI,
-            bit32.bor(ImGuiWindowFlags.NoDecoration, ImGuiWindowFlags.NoCollapse, ImGuiWindowFlags.NoScrollWithMouse))
+            bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoCollapse, ImGuiWindowFlags.NoScrollWithMouse))
 
         ImGui.PushStyleColor(ImGuiCol.Text, 1, 1, 1, 1)
         local pressed
@@ -632,103 +628,82 @@ local function vendorGUI()
         if shouldDrawGUI then
             if ImGui.BeginTabBar("VendorTabs", ImGuiTabBarFlags.None) then
                 if ImGui.BeginTabItem("Sell Junk") then
-                    local disabled = false
-                    if vendItem ~= nil or sellAllJunk then
-                        ImGui.BeginDisabled()
-                        disabled = true
-                    end
-                    if collapsed then
-                        pressed = ImGui.SmallButton(Icons.MD_CHEVRON_RIGHT)
-                        if pressed then
-                            collapsed = false
-                        end
-                    else
-                        ImGui.Text("Item Filters: ")
-                        ImGui.SameLine()
-                        sourceIndex, pressed = ImGui.Combo("##Select Bag", sourceIndex, function(idx) return vendorInv.sendSources[idx].name end, #vendorInv.sendSources)
-                        if pressed then
-                            vendorInv:getItems(sourceIndex)
-                        end
+                    local disabled = vendItem ~= nil or sellAllJunk
+                    ImGui.BeginDisabled(disabled)
 
-                        ImGui.SameLine()
-                        pressed = ImGui.SmallButton(Icons.MD_CHEVRON_LEFT)
-                        if pressed then
-                            collapsed = true
-                        end
-
-                        ImGui.Text(string.format("Filtered Items (%d):", #vendorInv.items or 0))
-
-                        ImGui.SameLine()
-
-                        if ImGui.SmallButton(Icons.MD_REFRESH) then
-                            vendorInv:createContainerInventory()
-                            vendorInv:getItems(sourceIndex)
-                        end
-
-                        ImGui.SameLine()
-
-                        if disabled then
-                            ImGui.EndDisabled()
-                        end
-
-                        if ImGui.SmallButton(disabled and "Cancel Selling" or "Sell Junk") then
-                            sellAllJunk = not sellAllJunk
-                            if sellAllJunk then
-                                autoSellJunk()
-                            end
-                        end
-                        Tooltip(disabled and "Stop selling junk items" or "Sell all junk items")
-
-                        if disabled then
-                            ImGui.BeginDisabled()
-                        end
-                        ImGui.SameLine()
-
-                        if ImGui.SmallButton(showHidden and Icons.FA_EYE or Icons.FA_EYE_SLASH) then
-                            showHidden = not showHidden
-                        end
-                        Tooltip("Toggle showing hidden items")
-
-                        ImGui.NewLine()
-                        ImGui.Separator()
-
-                        ImGui.BeginChild("##VendorItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.AlwaysVerticalScrollbar)
-                        renderItems()
-                        ImGui.EndChild()
-                    end
-
-                    if disabled then
-                        ImGui.EndDisabled()
-                    end
-                    ImGui.EndTabItem()
-                end
-                if ImGui.BeginTabItem("Buy Items") then
-                    ImGui.Text(string.format("Merchant Items (%d):", #buyItemsSorted))
+                    ImGui.Text("Item Filters: ")
                     ImGui.SameLine()
-                    if ImGui.SmallButton(Icons.MD_REFRESH) then
-                        snapshotMerchantItems()
+                    sourceIndex, pressed = ImGui.Combo("##Select Bag", sourceIndex, function(idx) return vendorInv.sendSources[idx].name end, #vendorInv.sendSources)
+                    if pressed then
+                        vendorInv:getItems(sourceIndex)
                     end
-                    buyFilter = ImGui.InputText("##BuyFilter", buyFilter, 64)
-                    ImGui.Separator()
-                    ImGui.BeginChild("##BuyItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.None)
-                    renderBuyItems()
-                    ImGui.EndChild()
-                    ImGui.EndTabItem()
-                end
-                if ImGui.BeginTabItem("Dumpster Dive") then
-                    ImGui.Text(string.format("Potential Upgrades (%d):", #diveResults))
+
+                    ImGui.Text(string.format("Filtered Items (%d):", #vendorInv.items or 0))
+
                     ImGui.SameLine()
+
                     if ImGui.SmallButton(Icons.MD_REFRESH) then
-                        snapshotDiveResults()
+                        vendorInv:createContainerInventory()
+                        vendorInv:getItems(sourceIndex)
                     end
+
+                    ImGui.SameLine()
+
+                    ImGui.EndDisabled()
+
+                    if ImGui.SmallButton(disabled and "Cancel Selling" or "Sell Junk") then
+                        sellAllJunk = not sellAllJunk
+                        if sellAllJunk then
+                            autoSellJunk()
+                        end
+                    end
+                    Tooltip(disabled and "Stop selling junk items" or "Sell all junk items")
+
+                    ImGui.BeginDisabled(disabled)
+                    ImGui.SameLine()
+
+                    if ImGui.SmallButton(showHidden and Icons.FA_EYE or Icons.FA_EYE_SLASH) then
+                        showHidden = not showHidden
+                    end
+                    Tooltip("Toggle showing hidden items")
+
+                    ImGui.NewLine()
                     ImGui.Separator()
-                    ImGui.BeginChild("##DiveItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.None)
-                    renderDumpsterDive()
+
+                    ImGui.BeginChild("##VendorItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.AlwaysVerticalScrollbar)
+                    renderItems()
                     ImGui.EndChild()
+
+                    ImGui.EndDisabled()
                     ImGui.EndTabItem()
                 end
-                ImGui.EndTabBar()
             end
+            if ImGui.BeginTabItem("Buy Items") then
+                ImGui.Text(string.format("Merchant Items (%d):", #buyItemsSorted))
+                ImGui.SameLine()
+                if ImGui.SmallButton(Icons.MD_REFRESH) then
+                    snapshotMerchantItems()
+                end
+                buyFilter = ImGui.InputText("##BuyFilter", buyFilter, 64)
+                ImGui.Separator()
+                ImGui.BeginChild("##BuyItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.None)
+                renderBuyItems()
+                ImGui.EndChild()
+                ImGui.EndTabItem()
+            end
+            if ImGui.BeginTabItem("Dumpster Dive") then
+                ImGui.Text(string.format("Potential Upgrades (%d):", #diveResults))
+                ImGui.SameLine()
+                if ImGui.SmallButton(Icons.MD_REFRESH) then
+                    snapshotDiveResults()
+                end
+                ImGui.Separator()
+                ImGui.BeginChild("##DiveItems", -1, -1, ImGuiChildFlags.None, ImGuiWindowFlags.None)
+                renderDumpsterDive()
+                ImGui.EndChild()
+                ImGui.EndTabItem()
+            end
+            ImGui.EndTabBar()
         end
 
         ImGui.PopStyleColor()
